@@ -9,7 +9,112 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      flashcard_sets: {
+        Row: {
+          created_at: string
+          id: string
+          prompt: string
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prompt: string
+          title: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prompt?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      flashcards: {
+        Row: {
+          answer: string
+          created_at: string
+          difficulty: string | null
+          id: string
+          question: string
+          set_id: string
+        }
+        Insert: {
+          answer: string
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          question: string
+          set_id: string
+        }
+        Update: {
+          answer?: string
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          question?: string
+          set_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flashcards_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "flashcard_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quiz_sessions: {
+        Row: {
+          completed: boolean | null
+          correct_answers: number | null
+          created_at: string
+          current_card_index: number | null
+          id: string
+          set_id: string
+          total_attempts: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          completed?: boolean | null
+          correct_answers?: number | null
+          created_at?: string
+          current_card_index?: number | null
+          id?: string
+          set_id: string
+          total_attempts?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          completed?: boolean | null
+          correct_answers?: number | null
+          created_at?: string
+          current_card_index?: number | null
+          id?: string
+          set_id?: string
+          total_attempts?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quiz_sessions_set_id_fkey"
+            columns: ["set_id"]
+            isOneToOne: false
+            referencedRelation: "flashcard_sets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
