@@ -8,13 +8,45 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple text extraction function for different file types
+function extractTextFromFile(file: { name: string; type: string; content: string }): string {
+  try {
+    // Decode base64 content
+    const binaryString = atob(file.content);
+    
+    // For text files, try to decode as UTF-8
+    if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      const uint8Array = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+      }
+      return new TextDecoder('utf-8').decode(uint8Array);
+    }
+    
+    // For HTML files
+    if (file.type === 'text/html' || file.name.endsWith('.html')) {
+      const uint8Array = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+      }
+      return new TextDecoder('utf-8').decode(uint8Array);
+    }
+    
+    // For other file types, return basic info
+    return `Content from file: ${file.name} (${file.type})`;
+  } catch (error) {
+    console.error('Error extracting text from file:', error);
+    return `Unable to extract text from ${file.name}`;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { prompt, title, userId } = await req.json();
+    const { prompt, title, userId, files = [] } = await req.json();
     
     if (!prompt || !title || !userId) {
       return new Response(
@@ -31,6 +63,16 @@ serve(async (req) => {
       );
     }
 
+    // Process uploaded files to extract context
+    let additionalContext = '';
+    if (files && files.length > 0) {
+      const fileTexts = files.map(extractTextFromFile);
+      additionalContext = '\n\nAdditional context from uploaded files:\n' + fileTexts.join('\n\n');
+    }
+
+    // Enhanced prompt with file context
+    const enhancedPrompt = prompt + additionalContext;
+
     // Generate flashcards using OpenAI
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -43,14 +85,15 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a flashcard generator. Create 8-12 high-quality flashcards based on the user's prompt. 
+            content: `You are a flashcard generator. Create 8-12 high-quality flashcards based on the user's prompt and any additional context provided. 
             Return ONLY a JSON array of objects with "question" and "answer" fields. 
             Make questions clear and concise. Answers should be comprehensive but not too long.
-            Focus on key concepts, definitions, and important facts.`
+            Focus on key concepts, definitions, and important facts.
+            If additional context from files is provided, incorporate relevant information from those files into the flashcards.`
           },
           {
             role: 'user',
-            content: `Create flashcards for: ${prompt}`
+            content: `Create flashcards for: ${enhancedPrompt}`
           }
         ],
         temperature: 0.7,
@@ -84,7 +127,7 @@ serve(async (req) => {
       .insert({
         user_id: userId,
         title: title,
-        prompt: prompt
+        prompt: enhancedPrompt
       })
       .select()
       .single();

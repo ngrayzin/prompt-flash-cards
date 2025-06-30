@@ -130,17 +130,31 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
       setCorrectAnswers(correctAnswers + 1);
     }
 
+    // Check if all cards have been answered
+    const allAnswered = newAnsweredCards.every(answered => answered);
+
     setTimeout(() => {
-      if (currentIndex < flashcards.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-        setShowAnswer(false);
-      } else {
-        // Quiz completed
+      if (allAnswered) {
+        // Quiz completed - all questions attempted
         setQuizCompleted(true);
         toast({
           title: "Quiz Complete!",
           description: `Final Score: ${correct ? correctAnswers + 1 : correctAnswers}/${flashcards.length}`
         });
+      } else if (currentIndex < flashcards.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+        setShowAnswer(false);
+      } else {
+        // Reached the end but not all cards answered, find next unanswered card
+        const nextUnanswered = newAnsweredCards.findIndex(answered => !answered);
+        if (nextUnanswered !== -1) {
+          setCurrentIndex(nextUnanswered);
+          setShowAnswer(false);
+          toast({
+            title: "Continue Quiz",
+            description: "Answer all questions to complete the quiz!"
+          });
+        }
       }
     }, 1000);
   };
@@ -182,9 +196,9 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   }
 
   const currentCard = flashcards[currentIndex];
-  const progress = ((currentIndex + 1) / flashcards.length) * 100;
+  const progress = (answeredCards.filter(Boolean).length / flashcards.length) * 100;
   const answeredCount = answeredCards.filter(Boolean).length;
-  const scorePercentage = flashcards.length > 0 ? Math.round((correctAnswers / flashcards.length) * 100) : 0;
+  const scorePercentage = answeredCount > 0 ? Math.round((correctAnswers / answeredCount) * 100) : 0;
 
   if (quizCompleted) {
     return (
@@ -217,7 +231,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
                 {correctAnswers}/{flashcards.length}
               </h3>
               <p className="text-xl text-green-700 mb-4">
-                {scorePercentage}% Correct
+                {Math.round((correctAnswers / flashcards.length) * 100)}% Correct
               </p>
               <p className="text-gray-600">
                 {scorePercentage >= 80 ? 'Excellent work!' : 
@@ -291,10 +305,10 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
 
       <div className="text-center">
         <p className="text-lg font-semibold text-gray-700">
-          Score: {correctAnswers}/{flashcards.length} ({scorePercentage}%)
+          Score: {correctAnswers}/{answeredCount} answered ({scorePercentage}% correct)
         </p>
         <p className="text-sm text-gray-500">
-          Answered: {answeredCount}/{flashcards.length}
+          Progress: {answeredCount}/{flashcards.length} questions answered
         </p>
       </div>
 

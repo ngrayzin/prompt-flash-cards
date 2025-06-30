@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Sparkles, Loader2, Upload, X } from 'lucide-react';
 
 interface FlashcardGeneratorProps {
   onFlashcardsGenerated: (setId: string) => void;
@@ -17,9 +17,40 @@ interface FlashcardGeneratorProps {
 export default function FlashcardGenerator({ onFlashcardsGenerated }: FlashcardGeneratorProps) {
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(e.target.files || []);
+    const validFiles = selectedFiles.filter(file => {
+      const validTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/html',
+        'text/plain'
+      ];
+      return validTypes.includes(file.type) || file.name.endsWith('.pdf') || file.name.endsWith('.doc') || file.name.endsWith('.docx') || file.name.endsWith('.ppt') || file.name.endsWith('.pptx') || file.name.endsWith('.html') || file.name.endsWith('.txt');
+    });
+
+    if (validFiles.length !== selectedFiles.length) {
+      toast({
+        title: "Some files were skipped",
+        description: "Only PDF, DOC, DOCX, PPT, PPTX, HTML, and TXT files are supported",
+        variant: "destructive"
+      });
+    }
+
+    setFiles(prev => [...prev, ...validFiles].slice(0, 5)); // Limit to 5 files
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,11 +59,30 @@ export default function FlashcardGenerator({ onFlashcardsGenerated }: FlashcardG
     setLoading(true);
     
     try {
+      // Convert files to base64 for sending to edge function
+      const fileContents = await Promise.all(
+        files.map(async (file) => {
+          const reader = new FileReader();
+          return new Promise<{ name: string; type: string; content: string }>((resolve) => {
+            reader.onload = () => {
+              const result = reader.result as string;
+              resolve({
+                name: file.name,
+                type: file.type,
+                content: result.split(',')[1] // Remove data:... prefix
+              });
+            };
+            reader.readAsDataURL(file);
+          });
+        })
+      );
+
       const { data, error } = await supabase.functions.invoke('generate-flashcards', {
         body: {
           prompt: prompt.trim(),
           title: title.trim(),
-          userId: user.id
+          userId: user.id,
+          files: fileContents
         }
       });
 
@@ -47,6 +97,7 @@ export default function FlashcardGenerator({ onFlashcardsGenerated }: FlashcardG
         onFlashcardsGenerated(data.flashcardSet.id);
         setTitle('');
         setPrompt('');
+        setFiles([]);
       } else {
         throw new Error(data.error || 'Failed to generate flashcards');
       }
@@ -93,6 +144,49 @@ export default function FlashcardGenerator({ onFlashcardsGenerated }: FlashcardG
               rows={4}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="files">Additional Context Files (Optional)</Label>
+            <div className="space-y-2">
+              <Input
+                id="files"
+                type="file"
+                multiple
+                accept=".pdf,.doc,.docx,.ppt,.pptx,.html,.txt"
+                onChange={handleFileChange}
+                className="cursor-pointer"
+              />
+              <p className="text-xs text-gray-500">
+                Upload PDFs, Word docs, PowerPoint slides, HTML pages, or text files to provide extra context (max 5 files)
+              </p>
+            </div>
+            
+            {files.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Uploaded Files:</p>
+                <div className="space-y-1">
+                  {files.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                      <div className="flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm truncate">{file.name}</span>
+                        <span className="text-xs text-gray-500">({(file.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile(index)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           
           <Button type="submit" className="w-full" disabled={loading}>
