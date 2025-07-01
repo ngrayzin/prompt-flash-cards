@@ -13,7 +13,7 @@ interface FlashcardSet {
   prompt: string;
   created_at: string;
   flashcard_count?: number;
-  highscore?: number;
+  high_score?: number;
 }
 
 interface FlashcardSetsProps {
@@ -42,7 +42,6 @@ export default function FlashcardSets({
           title,
           prompt,
           created_at,
-          highscore,
           flashcards(count)
         `
         )
@@ -51,13 +50,33 @@ export default function FlashcardSets({
 
       if (error) throw error;
 
-      const setsWithCounts = data.map((set) => ({
-        ...set,
-        flashcard_count: set.flashcards?.[0]?.count || 0,
-        highscore: set.highscore || 0,
-      }));
+      // Fetch high scores for each set
+      const setsWithHighScores = await Promise.all(
+        data.map(async (set) => {
+          const { data: highScoreData } = await supabase
+            .from("quiz_sessions")
+            .select("correct_answers")
+            .eq("user_id", user.id)
+            .eq("set_id", set.id)
+            .eq("completed", true)
+            .order("correct_answers", { ascending: false })
+            .limit(1);
 
-      setSets(setsWithCounts);
+          const flashcardCount = set.flashcards?.[0]?.count || 0;
+          const highScore =
+            highScoreData && highScoreData.length > 0
+              ? highScoreData[0].correct_answers
+              : 0;
+
+          return {
+            ...set,
+            flashcard_count: flashcardCount,
+            high_score: highScore,
+          };
+        })
+      );
+
+      setSets(setsWithHighScores);
     } catch (error) {
       console.error("Error fetching flashcard sets:", error);
       toast({
@@ -151,11 +170,11 @@ export default function FlashcardSets({
             <div className="flex items-center justify-between">
               <Badge variant="secondary">{set.flashcard_count} cards</Badge>
 
-              {set.highscore !== undefined && set.highscore > 0 && (
+              {set.high_score !== undefined && set.high_score > 0 && (
                 <div className="flex items-center gap-1 text-amber-600">
                   <Award className="h-4 w-4" />
                   <span className="text-sm font-medium">
-                    {set.highscore}/{set.flashcard_count}
+                    {set.high_score}/{set.flashcard_count}
                   </span>
                 </div>
               )}

@@ -12,6 +12,7 @@ interface QuizCompletionProps {
   onGoToCard: (index: number) => void;
   answeredCards: boolean[];
   correctnessArray: (boolean | null)[];
+  onRefreshSets?: () => void;
 }
 
 export default function QuizCompletion({
@@ -24,6 +25,7 @@ export default function QuizCompletion({
   onGoToCard,
   answeredCards,
   correctnessArray,
+  onRefreshSets,
 }: QuizCompletionProps) {
   const scorePercentage = Math.round((correctAnswers / totalCards) * 100);
   const isNewRecord = correctAnswers > highScore;
@@ -48,10 +50,17 @@ export default function QuizCompletion({
     return "Keep studying and try again!";
   };
 
+  const handleBackToSets = () => {
+    if (onRefreshSets) {
+      onRefreshSets();
+    }
+    onBack();
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={handleBackToSets}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Sets
         </Button>
@@ -115,7 +124,7 @@ export default function QuizCompletion({
               <RotateCcw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
-            <Button variant="outline" size="lg" onClick={onBack}>
+            <Button variant="outline" size="lg" onClick={handleBackToSets}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Sets
             </Button>

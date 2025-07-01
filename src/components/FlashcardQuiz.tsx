@@ -22,9 +22,14 @@ interface Flashcard {
 interface FlashcardQuizProps {
   setId: string;
   onBack: () => void;
+  onRefreshSets?: () => void;
 }
 
-export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
+export default function FlashcardQuiz({
+  setId,
+  onBack,
+  onRefreshSets,
+}: FlashcardQuizProps) {
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -44,6 +49,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
     highScore,
     getHighScorePercentage,
     verifySessionSaved,
+    refreshHighScore,
   } = useQuizSession(setId);
 
   useEffect(() => {
@@ -52,8 +58,18 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   }, [setId]);
 
   useEffect(() => {
-    updateSession(currentIndex, correctAnswers, answeredCards, quizCompleted);
-  }, [currentIndex, correctAnswers, answeredCards, quizCompleted]);
+    if (sessionId) {
+      updateSession(currentIndex, correctAnswers, answeredCards, quizCompleted);
+    }
+  }, [currentIndex, correctAnswers, answeredCards, quizCompleted, sessionId]);
+
+  useEffect(() => {
+    if (quizCompleted && refreshHighScore) {
+      setTimeout(() => {
+        refreshHighScore();
+      }, 500);
+    }
+  }, [quizCompleted, refreshHighScore]);
 
   const fetchFlashcards = async () => {
     try {
@@ -216,6 +232,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
         onGoToCard={goToCard}
         answeredCards={answeredCards}
         correctnessArray={correctnessArray}
+        onRefreshSets={onRefreshSets}
       />
     );
   }

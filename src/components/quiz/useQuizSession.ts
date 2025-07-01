@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 export function useQuizSession(setId: string) {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [highScore, setHighScore] = useState<number>(0);
-  const [isUpdatingHighScore, setIsUpdatingHighScore] = useState<boolean>(false);
+  const [isUpdatingHighScore, setIsUpdatingHighScore] =
+    useState<boolean>(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -15,57 +15,38 @@ export function useQuizSession(setId: string) {
 
   const fetchHighScore = async () => {
     if (!user) return;
-
-    try {
-      console.log("Fetching high score for set:", setId);
-
-      const { data, error } = await supabase
-        .from("flashcard_sets")
-        .select("highscore")
-        .eq("id", setId)
-        .eq("user_id", user.id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching high score:", error);
-        throw error;
-      }
-
-      console.log("High score data:", data);
-      const currentHighScore = data?.highscore || 0;
-      setHighScore(currentHighScore);
-      console.log("Set high score to:", currentHighScore);
-    } catch (error) {
-      console.error("Error fetching high score:", error);
-      setHighScore(0);
-    }
-  };
-
-  const updateHighScore = async (newScore: number) => {
-    if (!user || newScore <= highScore) return;
+    if (isUpdatingHighScore) return; // Prevent concurrent updates
 
     setIsUpdatingHighScore(true);
     try {
-      console.log("Updating high score from", highScore, "to", newScore);
+      console.log("Fetching high score for user:", user.id, "set:", setId);
 
-      const { error } = await supabase
-        .from("flashcard_sets")
-        .update({ 
-          highscore: newScore,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", setId)
-        .eq("user_id", user.id);
+      const { data, error } = await supabase
+        .from("quiz_sessions")
+        .select("correct_answers, created_at")
+        .eq("user_id", user.id)
+        .eq("set_id", setId)
+        .eq("completed", true)
+        .order("correct_answers", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1);
 
       if (error) {
-        console.error("Error updating high score:", error);
+        console.error("Error in fetchHighScore query:", error);
         throw error;
       }
 
-      setHighScore(newScore);
-      console.log("High score updated successfully to:", newScore);
+      console.log("High score query result:", data);
+
+      if (data && data.length > 0) {
+        console.log("Setting high score to:", data[0].correct_answers);
+        setHighScore(data[0].correct_answers);
+      } else {
+        console.log("No completed sessions found, high score remains 0");
+        setHighScore(0);
+      }
     } catch (error) {
-      console.error("Error updating high score:", error);
+      console.error("Error fetching high score:", error);
     } finally {
       setIsUpdatingHighScore(false);
     }
@@ -128,9 +109,24 @@ export function useQuizSession(setId: string) {
         completed: quizCompleted,
       });
 
-      // If quiz is completed, check if we need to update high score
+      // If quiz is completed, immediately check and update high score
       if (quizCompleted) {
-        await updateHighScore(correctAnswers);
+        // Wait a moment for the database to process the update
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Update local high score immediately if this is better
+        if (correctAnswers > highScore) {
+          console.log(
+            "New high score detected, updating from",
+            highScore,
+            "to",
+            correctAnswers
+          );
+          setHighScore(correctAnswers);
+        }
+
+        // Also fetch from database to ensure consistency
+        await fetchHighScore();
       }
     } catch (error) {
       console.error("Error updating session:", error);
@@ -149,6 +145,32 @@ export function useQuizSession(setId: string) {
     return totalCards > 0 ? Math.round((correctAnswers / totalCards) * 100) : 0;
   };
 
+  const verifySessionSaved = async (sessionId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("quiz_sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .single();
+
+      if (error) {
+        console.error("Error verifying session:", error);
+        return null;
+      }
+
+      console.log("Session verification result:", data);
+      return data;
+    } catch (error) {
+      console.error("Error verifying session:", error);
+      return null;
+    }
+  };
+
+  const refreshHighScore = async () => {
+    console.log("Manually refreshing high score...");
+    await fetchHighScore();
+  };
+
   return {
     sessionId,
     highScore,
@@ -156,8 +178,9 @@ export function useQuizSession(setId: string) {
     createQuizSession,
     updateSession,
     fetchHighScore,
-    updateHighScore,
+    refreshHighScore,
     getHighScorePercentage,
     getCurrentScorePercentage,
+    verifySessionSaved,
   };
 }

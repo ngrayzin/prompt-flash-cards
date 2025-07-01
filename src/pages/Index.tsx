@@ -1,20 +1,19 @@
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import Auth from "@/components/Auth";
+import FlashcardGenerator from "@/components/FlashcardGenerator";
+import FlashcardSets from "@/components/FlashcardSets";
+import FlashcardQuiz from "@/components/FlashcardQuiz";
+import { Button } from "@/components/ui/button";
+import { LogOut, Brain, Zap } from "lucide-react";
 
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import Auth from '@/components/Auth';
-import FlashcardGenerator from '@/components/FlashcardGenerator';
-import FlashcardSets from '@/components/FlashcardSets';
-import FlashcardQuiz from '@/components/FlashcardQuiz';
-import { Button } from '@/components/ui/button';
-import { LogOut, Brain, Zap } from 'lucide-react';
-
-type ViewState = 'home' | 'quiz';
+type ViewState = "home" | "quiz";
 
 const Index = () => {
   const { user, loading, signOut } = useAuth();
-  const [currentView, setCurrentView] = useState<ViewState>('home');
+  const [currentView, setCurrentView] = useState<ViewState>("home");
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState<string>('');
+  const [refreshTrigger, setRefreshTrigger] = useState<string>("");
 
   const handleSignOut = async () => {
     await signOut();
@@ -26,12 +25,17 @@ const Index = () => {
 
   const handleStartQuiz = (setId: string) => {
     setActiveSetId(setId);
-    setCurrentView('quiz');
+    setCurrentView("quiz");
   };
 
   const handleBackToHome = () => {
-    setCurrentView('home');
+    setCurrentView("home");
     setActiveSetId(null);
+  };
+
+  const handleRefreshSets = () => {
+    // Generate a new timestamp to trigger refresh
+    setRefreshTrigger(Date.now().toString());
   };
 
   if (loading) {
@@ -53,9 +57,11 @@ const Index = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center">
               <Brain className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-2xl font-bold text-gray-900">Flashcard Quiz Generator</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Flashcard Quiz Generator
+              </h1>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <span className="text-sm text-gray-600">
                 Welcome, {user.email}
@@ -70,27 +76,30 @@ const Index = () => {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'home' && (
+        {currentView === "home" && (
           <div className="space-y-8">
             <div className="text-center">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
                 AI-Powered Learning Made Simple
               </h2>
               <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                Transform any topic into interactive flashcards. Just describe what you want to learn, 
-                and our AI will create personalized quiz questions to help you master the material.
+                Transform any topic into interactive flashcards. Just describe
+                what you want to learn, and our AI will create personalized quiz
+                questions to help you master the material.
               </p>
             </div>
 
-            <FlashcardGenerator onFlashcardsGenerated={handleFlashcardsGenerated} />
+            <FlashcardGenerator
+              onFlashcardsGenerated={handleFlashcardsGenerated}
+            />
 
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-yellow-500" />
                 <h3 className="text-xl font-semibold">Your Flashcard Sets</h3>
               </div>
-              
-              <FlashcardSets 
+
+              <FlashcardSets
                 refreshTrigger={refreshTrigger}
                 onStartQuiz={handleStartQuiz}
               />
@@ -98,10 +107,11 @@ const Index = () => {
           </div>
         )}
 
-        {currentView === 'quiz' && activeSetId && (
-          <FlashcardQuiz 
+        {currentView === "quiz" && activeSetId && (
+          <FlashcardQuiz
             setId={activeSetId}
             onBack={handleBackToHome}
+            onRefreshSets={handleRefreshSets}
           />
         )}
       </main>
