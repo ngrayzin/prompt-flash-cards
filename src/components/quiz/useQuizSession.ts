@@ -111,8 +111,6 @@ export function useQuizSession(setId: string) {
 
       // If quiz is completed, immediately check and update high score
       if (quizCompleted) {
-        console.log("Quiz completed, updating high score...");
-
         // Wait a moment for the database to process the update
         await new Promise((resolve) => setTimeout(resolve, 500));
 
@@ -123,8 +121,6 @@ export function useQuizSession(setId: string) {
           savedSession.completed &&
           savedSession.correct_answers === correctAnswers
         ) {
-          console.log("Session successfully saved as completed");
-
           // Update local high score immediately if this is better
           if (correctAnswers > highScore) {
             console.log(
@@ -186,11 +182,6 @@ export function useQuizSession(setId: string) {
     }
   };
 
-  const refreshHighScore = async () => {
-    console.log("Manually refreshing high score...");
-    await fetchHighScore();
-  };
-
   return {
     sessionId,
     highScore,
@@ -198,7 +189,6 @@ export function useQuizSession(setId: string) {
     createQuizSession,
     updateSession,
     fetchHighScore,
-    refreshHighScore,
     getHighScorePercentage,
     getCurrentScorePercentage,
     verifySessionSaved,

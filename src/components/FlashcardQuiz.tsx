@@ -44,7 +44,6 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
     highScore,
     getHighScorePercentage,
     verifySessionSaved,
-    refreshHighScore,
   } = useQuizSession(setId);
 
   useEffect(() => {
@@ -55,15 +54,6 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   useEffect(() => {
     updateSession(currentIndex, correctAnswers, answeredCards, quizCompleted);
   }, [currentIndex, correctAnswers, answeredCards, quizCompleted]);
-
-  useEffect(() => {
-    if (quizCompleted && refreshHighScore) {
-      // Refresh high score when quiz is completed to ensure UI shows latest value
-      setTimeout(() => {
-        refreshHighScore();
-      }, 1000);
-    }
-  }, [quizCompleted, refreshHighScore]);
 
   const fetchFlashcards = async () => {
     try {
