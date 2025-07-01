@@ -74,9 +74,11 @@ export function useQuizSession(setId: string) {
         })
         .eq('id', sessionId);
 
-      // Update high score if this is a new record
+      // Update local high score if this is a new record and quiz is completed
       if (quizCompleted && correctAnswers > highScore) {
         setHighScore(correctAnswers);
+        // Fetch updated high score from database to ensure consistency
+        await fetchHighScore();
       }
     } catch (error) {
       console.error('Error updating session:', error);

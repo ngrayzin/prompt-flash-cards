@@ -21,10 +21,10 @@ export default function QuizProgress({ progress, correctAnswers, answeredCount, 
       <div className="flex justify-between items-center">
         <div className="text-center">
           <p className="text-lg font-semibold text-gray-700">
-            Score: {correctAnswers}/{answeredCount} answered
+            Score: {correctAnswers}/{totalCards}
           </p>
           <p className="text-sm text-gray-500">
-            {scorePercentage}% correct
+            {scorePercentage}% of answered questions correct
           </p>
         </div>
         

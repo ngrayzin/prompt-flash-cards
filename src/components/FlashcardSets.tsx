@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -160,7 +159,7 @@ export default function FlashcardSets({ refreshTrigger, onStartQuiz }: Flashcard
                 {set.flashcard_count} cards
               </Badge>
               
-              {set.high_score && set.high_score > 0 && (
+              {set.high_score !== undefined && set.high_score > 0 && (
                 <div className="flex items-center gap-1 text-amber-600">
                   <Award className="h-4 w-4" />
                   <span className="text-sm font-medium">
