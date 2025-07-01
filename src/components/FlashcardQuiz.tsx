@@ -1,17 +1,16 @@
-
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import QuizHeader from './quiz/QuizHeader';
-import QuizProgress from './quiz/QuizProgress';
-import FlashcardDisplay from './quiz/FlashcardDisplay';
-import AnswerButtons from './quiz/AnswerButtons';
-import CardNavigation from './quiz/CardNavigation';
-import QuizCompletion from './quiz/QuizCompletion';
-import { useQuizSession } from './quiz/useQuizSession';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import QuizHeader from "./quiz/QuizHeader";
+import QuizProgress from "./quiz/QuizProgress";
+import FlashcardDisplay from "./quiz/FlashcardDisplay";
+import AnswerButtons from "./quiz/AnswerButtons";
+import CardNavigation from "./quiz/CardNavigation";
+import QuizCompletion from "./quiz/QuizCompletion";
+import { useQuizSession } from "./quiz/useQuizSession";
 
 interface Flashcard {
   id: string;
@@ -30,12 +29,23 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [answeredCards, setAnsweredCards] = useState<boolean[]>([]);
+  const [correctnessArray, setCorrectnessArray] = useState<(boolean | null)[]>(
+    []
+  );
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [setTitle, setSetTitle] = useState('');
+  const [setTitle, setSetTitle] = useState("");
   const [quizCompleted, setQuizCompleted] = useState(false);
   const { toast } = useToast();
-  const { createQuizSession, updateSession, highScore } = useQuizSession(setId);
+  const {
+    sessionId,
+    createQuizSession,
+    updateSession,
+    highScore,
+    getHighScorePercentage,
+    verifySessionSaved,
+    refreshHighScore,
+  } = useQuizSession(setId);
 
   useEffect(() => {
     fetchFlashcards();
@@ -46,72 +56,112 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
     updateSession(currentIndex, correctAnswers, answeredCards, quizCompleted);
   }, [currentIndex, correctAnswers, answeredCards, quizCompleted]);
 
+  useEffect(() => {
+    if (quizCompleted && refreshHighScore) {
+      // Refresh high score when quiz is completed to ensure UI shows latest value
+      setTimeout(() => {
+        refreshHighScore();
+      }, 1000);
+    }
+  }, [quizCompleted, refreshHighScore]);
+
   const fetchFlashcards = async () => {
     try {
       const { data: setData, error: setError } = await supabase
-        .from('flashcard_sets')
-        .select('title')
-        .eq('id', setId)
+        .from("flashcard_sets")
+        .select("title")
+        .eq("id", setId)
         .single();
 
       if (setError) throw setError;
       setSetTitle(setData.title);
 
       const { data, error } = await supabase
-        .from('flashcards')
-        .select('*')
-        .eq('set_id', setId)
-        .order('created_at');
+        .from("flashcards")
+        .select("*")
+        .eq("set_id", setId)
+        .order("created_at");
 
       if (error) throw error;
       setFlashcards(data || []);
       setAnsweredCards(new Array(data?.length || 0).fill(false));
+      setCorrectnessArray(new Array(data?.length || 0).fill(null));
     } catch (error) {
-      console.error('Error fetching flashcards:', error);
+      console.error("Error fetching flashcards:", error);
       toast({
         title: "Error",
         description: "Failed to load flashcards",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAnswer = (correct: boolean) => {
+  const handleAnswer = async (correct: boolean) => {
     if (answeredCards[currentIndex]) return;
 
     const newAnsweredCards = [...answeredCards];
     newAnsweredCards[currentIndex] = true;
     setAnsweredCards(newAnsweredCards);
 
+    const newCorrectnessArray = [...correctnessArray];
+    newCorrectnessArray[currentIndex] = correct;
+    setCorrectnessArray(newCorrectnessArray);
+
+    const newCorrectAnswers = correct ? correctAnswers + 1 : correctAnswers;
     if (correct) {
-      setCorrectAnswers(correctAnswers + 1);
+      setCorrectAnswers(newCorrectAnswers);
     }
 
-    const allAnswered = newAnsweredCards.every(answered => answered);
+    const allAnswered = newAnsweredCards.every((answered) => answered);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (allAnswered) {
         setQuizCompleted(true);
-        const finalScore = correct ? correctAnswers + 1 : correctAnswers;
-        const isNewRecord = finalScore > highScore;
-        
-        toast({
-          title: isNewRecord ? "🎉 New Personal Best!" : "Quiz Complete!",
-          description: `Final Score: ${finalScore}/${flashcards.length}${isNewRecord ? ' - New Record!' : ''}`
-        });
+        const isNewRecord = newCorrectAnswers > highScore;
+
+        try {
+          // Update session with final results and wait for completion
+          await updateSession(
+            currentIndex,
+            newCorrectAnswers,
+            newAnsweredCards,
+            true
+          );
+
+          // Verify the session was saved correctly
+          if (verifySessionSaved) {
+            const savedSession = await verifySessionSaved(sessionId || "");
+            console.log("Session verification after completion:", savedSession);
+          }
+
+          toast({
+            title: isNewRecord ? "🎉 New Personal Best!" : "Quiz Complete!",
+            description: `Final Score: ${newCorrectAnswers}/${
+              flashcards.length
+            }${isNewRecord ? " - New Record!" : ""}`,
+          });
+        } catch (error) {
+          console.error("Error completing quiz:", error);
+          toast({
+            title: "Quiz Complete!",
+            description: `Final Score: ${newCorrectAnswers}/${flashcards.length}`,
+          });
+        }
       } else if (currentIndex < flashcards.length - 1) {
         setCurrentIndex(currentIndex + 1);
         setShowAnswer(false);
       } else {
-        const nextUnanswered = newAnsweredCards.findIndex(answered => !answered);
+        const nextUnanswered = newAnsweredCards.findIndex(
+          (answered) => !answered
+        );
         if (nextUnanswered !== -1) {
           setCurrentIndex(nextUnanswered);
           setShowAnswer(false);
           toast({
             title: "Continue Quiz",
-            description: "Answer all questions to complete the quiz!"
+            description: "Answer all questions to complete the quiz!",
           });
         }
       }
@@ -123,6 +173,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
     setShowAnswer(false);
     setCorrectAnswers(0);
     setAnsweredCards(new Array(flashcards.length).fill(false));
+    setCorrectnessArray(new Array(flashcards.length).fill(null));
     setQuizCompleted(false);
     createQuizSession();
   };
@@ -159,7 +210,8 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   }
 
   const currentCard = flashcards[currentIndex];
-  const progress = (answeredCards.filter(Boolean).length / flashcards.length) * 100;
+  const progress =
+    (answeredCards.filter(Boolean).length / flashcards.length) * 100;
   const answeredCount = answeredCards.filter(Boolean).length;
 
   if (quizCompleted) {
@@ -173,6 +225,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
         onBack={onBack}
         onGoToCard={goToCard}
         answeredCards={answeredCards}
+        correctnessArray={correctnessArray}
       />
     );
   }
@@ -212,6 +265,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
         flashcardCount={flashcards.length}
         currentIndex={currentIndex}
         answeredCards={answeredCards}
+        correctnessArray={correctnessArray}
         onGoToCard={goToCard}
       />
     </div>
