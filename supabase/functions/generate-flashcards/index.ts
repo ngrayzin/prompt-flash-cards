@@ -40,6 +40,39 @@ function extractTextFromFile(file: { name: string; type: string; content: string
   }
 }
 
+// Function to clean and parse JSON response from OpenAI
+function parseFlashcardsFromResponse(responseText: string): any[] {
+  try {
+    // First, try to parse as direct JSON
+    return JSON.parse(responseText);
+  } catch (e) {
+    // If that fails, try to extract JSON from markdown code blocks
+    const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[1]);
+      } catch (parseError) {
+        console.error('Failed to parse JSON from markdown block:', jsonMatch[1]);
+        throw new Error('Invalid JSON format in markdown block');
+      }
+    }
+    
+    // If no markdown blocks found, try to find JSON array pattern
+    const arrayMatch = responseText.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      try {
+        return JSON.parse(arrayMatch[0]);
+      } catch (parseError) {
+        console.error('Failed to parse JSON array:', arrayMatch[0]);
+        throw new Error('Invalid JSON array format');
+      }
+    }
+    
+    console.error('No valid JSON found in response:', responseText);
+    throw new Error('No valid JSON format found in response');
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -89,7 +122,8 @@ serve(async (req) => {
             Return ONLY a JSON array of objects with "question" and "answer" fields. 
             Make questions clear and concise. Answers should be comprehensive but not too long.
             Focus on key concepts, definitions, and important facts.
-            If additional context from files is provided, incorporate relevant information from those files into the flashcards.`
+            If additional context from files is provided, incorporate relevant information from those files into the flashcards.
+            Do not wrap your response in markdown code blocks - return pure JSON only.`
           },
           {
             role: 'user',
@@ -107,13 +141,28 @@ serve(async (req) => {
     const data = await response.json();
     const flashcardsText = data.choices[0].message.content;
     
-    // Parse the JSON response
+    console.log('OpenAI response:', flashcardsText);
+    
+    // Parse the response using the improved parser
     let flashcards;
     try {
-      flashcards = JSON.parse(flashcardsText);
+      flashcards = parseFlashcardsFromResponse(flashcardsText);
     } catch (e) {
-      console.error('Failed to parse flashcards JSON:', flashcardsText);
-      throw new Error('Invalid response format from OpenAI');
+      console.error('Failed to parse flashcards:', e.message);
+      console.error('Raw response:', flashcardsText);
+      throw new Error(`Invalid response format from OpenAI: ${e.message}`);
+    }
+
+    // Validate the parsed data
+    if (!Array.isArray(flashcards)) {
+      throw new Error('Response is not an array of flashcards');
+    }
+
+    // Validate each flashcard has required fields
+    for (const card of flashcards) {
+      if (!card.question || !card.answer) {
+        throw new Error('Each flashcard must have question and answer fields');
+      }
     }
 
     // Initialize Supabase client
