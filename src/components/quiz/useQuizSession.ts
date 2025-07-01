@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +16,7 @@ export function useQuizSession(setId: string) {
 
   const fetchHighScore = async () => {
     if (!user) return;
-    if (isUpdatingHighScore) return; // Prevent concurrent updates
+    if (isUpdatingHighScore) return;
 
     setIsUpdatingHighScore(true);
     try {
@@ -70,6 +71,7 @@ export function useQuizSession(setId: string) {
         .single();
 
       if (error) throw error;
+      console.log("Created quiz session:", data.id);
       setSessionId(data.id);
     } catch (error) {
       console.error("Error creating quiz session:", error);
@@ -82,7 +84,10 @@ export function useQuizSession(setId: string) {
     answeredCards: boolean[],
     quizCompleted: boolean
   ) => {
-    if (!sessionId) return;
+    if (!sessionId) {
+      console.warn("No session ID available for update");
+      return;
+    }
 
     try {
       const totalAttempts = answeredCards.filter(Boolean).length;
@@ -109,44 +114,19 @@ export function useQuizSession(setId: string) {
         completed: quizCompleted,
       });
 
-      // If quiz is completed, immediately check and update high score
+      // If quiz is completed, immediately update high score if it's better
       if (quizCompleted) {
-        console.log("Quiz completed, updating high score...");
-
-        // Wait a moment for the database to process the update
-        await new Promise((resolve) => setTimeout(resolve, 500));
-
-        // Double-check that the session was actually saved with completed=true
-        const savedSession = await verifySessionSaved(sessionId);
-        if (
-          savedSession &&
-          savedSession.completed &&
-          savedSession.correct_answers === correctAnswers
-        ) {
-          console.log("Session successfully saved as completed");
-
-          // Update local high score immediately if this is better
-          if (correctAnswers > highScore) {
-            console.log(
-              "New high score detected, updating from",
-              highScore,
-              "to",
-              correctAnswers
-            );
-            setHighScore(correctAnswers);
-          }
-
-          // Also fetch from database to ensure consistency
-          await fetchHighScore();
-        } else {
-          console.warn(
-            "Session may not have been saved correctly:",
-            savedSession
-          );
-
-          // Still try to fetch high score in case there were other completed sessions
-          await fetchHighScore();
+        console.log("Quiz completed, checking for new high score...");
+        
+        if (correctAnswers > highScore) {
+          console.log("New high score detected, updating from", highScore, "to", correctAnswers);
+          setHighScore(correctAnswers);
         }
+
+        // Also refresh from database after a short delay
+        setTimeout(() => {
+          fetchHighScore();
+        }, 1000);
       }
     } catch (error) {
       console.error("Error updating session:", error);
@@ -166,6 +146,11 @@ export function useQuizSession(setId: string) {
   };
 
   const verifySessionSaved = async (sessionId: string) => {
+    if (!sessionId || sessionId.trim() === "") {
+      console.warn("Invalid session ID provided for verification");
+      return null;
+    }
+
     try {
       const { data, error } = await supabase
         .from("quiz_sessions")

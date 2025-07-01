@@ -53,15 +53,16 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   }, [setId]);
 
   useEffect(() => {
-    updateSession(currentIndex, correctAnswers, answeredCards, quizCompleted);
-  }, [currentIndex, correctAnswers, answeredCards, quizCompleted]);
+    if (sessionId) {
+      updateSession(currentIndex, correctAnswers, answeredCards, quizCompleted);
+    }
+  }, [currentIndex, correctAnswers, answeredCards, quizCompleted, sessionId]);
 
   useEffect(() => {
     if (quizCompleted && refreshHighScore) {
-      // Refresh high score when quiz is completed to ensure UI shows latest value
       setTimeout(() => {
         refreshHighScore();
-      }, 1000);
+      }, 500);
     }
   }, [quizCompleted, refreshHighScore]);
 
@@ -122,18 +123,18 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
         const isNewRecord = newCorrectAnswers > highScore;
 
         try {
-          // Update session with final results and wait for completion
-          await updateSession(
-            currentIndex,
-            newCorrectAnswers,
-            newAnsweredCards,
-            true
-          );
+          if (sessionId) {
+            await updateSession(
+              currentIndex,
+              newCorrectAnswers,
+              newAnsweredCards,
+              true
+            );
 
-          // Verify the session was saved correctly
-          if (verifySessionSaved) {
-            const savedSession = await verifySessionSaved(sessionId || "");
-            console.log("Session verification after completion:", savedSession);
+            if (verifySessionSaved) {
+              const savedSession = await verifySessionSaved(sessionId);
+              console.log("Session verification after completion:", savedSession);
+            }
           }
 
           toast({
