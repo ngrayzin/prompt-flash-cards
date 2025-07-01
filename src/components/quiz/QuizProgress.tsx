@@ -1,5 +1,6 @@
+
 import { Progress } from "@/components/ui/progress";
-import { Award, Star } from "lucide-react";
+import { Award, Star, Trophy } from "lucide-react";
 
 interface QuizProgressProps {
   progress: number;
@@ -20,51 +21,60 @@ export default function QuizProgress({
     totalCards > 0 ? Math.round((correctAnswers / totalCards) * 100) : 0;
   const answeredPercentage =
     answeredCount > 0 ? Math.round((correctAnswers / answeredCount) * 100) : 0;
+  const highScorePercentage = 
+    totalCards > 0 ? Math.round((highScore / totalCards) * 100) : 0;
   const isNewRecord = correctAnswers > highScore;
 
   return (
-    <div className="space-y-4">
-      <Progress value={progress} className="h-3" />
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex justify-between items-center text-sm text-gray-600">
+          <span>Progress</span>
+          <span>{answeredCount}/{totalCards} completed</span>
+        </div>
+        <Progress value={progress} className="h-3" />
+      </div>
 
-      <div className="flex justify-between items-center">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-700">
-            Score: {correctAnswers}/{totalCards}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Trophy className="h-5 w-5 text-blue-600" />
+            <span className="text-sm font-medium text-blue-800">Current Score</span>
+          </div>
+          <p className="text-2xl font-bold text-blue-900">
+            {correctAnswers}/{totalCards}
           </p>
-          <p className="text-sm text-gray-500">
-            {scorePercentage}% of total deck completed correctly
+          <p className="text-sm text-blue-700">
+            {scorePercentage}% correct
           </p>
           {answeredCount > 0 && answeredCount < totalCards && (
-            <p className="text-xs text-gray-400">
-              ({answeredPercentage}% of answered questions correct)
+            <p className="text-xs text-blue-600 mt-1">
+              ({answeredPercentage}% of answered)
             </p>
           )}
         </div>
 
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1 text-amber-600">
-            <Award className="h-4 w-4" />
-            <span className="text-sm font-medium">High Score</span>
+        <div className="text-center p-4 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Award className="h-5 w-5 text-amber-600" />
+            <span className="text-sm font-medium text-amber-800">High Score</span>
           </div>
-          <p className="text-lg font-bold text-amber-700">
+          <p className="text-2xl font-bold text-amber-900">
             {highScore}/{totalCards}
+          </p>
+          <p className="text-sm text-amber-700">
+            {highScorePercentage}% best
           </p>
         </div>
       </div>
 
       {isNewRecord && answeredCount > 0 && (
-        <div className="flex items-center justify-center gap-2 text-green-600 animate-pulse">
-          <Star className="h-4 w-4" />
-          <span className="text-sm font-medium">New Personal Best!</span>
-          <Star className="h-4 w-4" />
+        <div className="flex items-center justify-center gap-2 text-green-600 animate-pulse bg-green-50 p-3 rounded-lg border border-green-200">
+          <Star className="h-5 w-5" />
+          <span className="font-medium">New Personal Best in Progress!</span>
+          <Star className="h-5 w-5" />
         </div>
       )}
-
-      <div className="text-center">
-        <p className="text-sm text-gray-500">
-          Progress: {answeredCount}/{totalCards} questions answered
-        </p>
-      </div>
     </div>
   );
 }
