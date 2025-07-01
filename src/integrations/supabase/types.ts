@@ -12,6 +12,7 @@ export type Database = {
       flashcard_sets: {
         Row: {
           created_at: string
+          highscore: number | null
           id: string
           prompt: string
           title: string
@@ -20,6 +21,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          highscore?: number | null
           id?: string
           prompt: string
           title: string
@@ -28,6 +30,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          highscore?: number | null
           id?: string
           prompt?: string
           title?: string

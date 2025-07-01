@@ -42,6 +42,7 @@ export default function FlashcardSets({
           title,
           prompt,
           created_at,
+          highscore,
           flashcards(count)
         `
         )
@@ -50,33 +51,13 @@ export default function FlashcardSets({
 
       if (error) throw error;
 
-      // Fetch high scores for each set
-      const setsWithHighScores = await Promise.all(
-        data.map(async (set) => {
-          const { data: highScoreData } = await supabase
-            .from("quiz_sessions")
-            .select("correct_answers")
-            .eq("user_id", user.id)
-            .eq("set_id", set.id)
-            .eq("completed", true)
-            .order("correct_answers", { ascending: false })
-            .limit(1);
+      const setsWithCounts = data.map((set) => ({
+        ...set,
+        flashcard_count: set.flashcards?.[0]?.count || 0,
+        highscore: set.highscore || 0,
+      }));
 
-          const flashcardCount = set.flashcards?.[0]?.count || 0;
-          const highScore =
-            highScoreData && highScoreData.length > 0
-              ? highScoreData[0].correct_answers
-              : 0;
-
-          return {
-            ...set,
-            flashcard_count: flashcardCount,
-            highscore: highScore,
-          };
-        })
-      );
-
-      setSets(setsWithHighScores);
+      setSets(setsWithCounts);
     } catch (error) {
       console.error("Error fetching flashcard sets:", error);
       toast({
