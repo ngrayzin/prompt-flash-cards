@@ -35,7 +35,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
   const [setTitle, setSetTitle] = useState('');
   const [quizCompleted, setQuizCompleted] = useState(false);
   const { toast } = useToast();
-  const { createQuizSession, updateSession } = useQuizSession(setId);
+  const { createQuizSession, updateSession, highScore } = useQuizSession(setId);
 
   useEffect(() => {
     fetchFlashcards();
@@ -94,9 +94,12 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
     setTimeout(() => {
       if (allAnswered) {
         setQuizCompleted(true);
+        const finalScore = correct ? correctAnswers + 1 : correctAnswers;
+        const isNewRecord = finalScore > highScore;
+        
         toast({
-          title: "Quiz Complete!",
-          description: `Final Score: ${correct ? correctAnswers + 1 : correctAnswers}/${flashcards.length}`
+          title: isNewRecord ? "🎉 New Personal Best!" : "Quiz Complete!",
+          description: `Final Score: ${finalScore}/${flashcards.length}${isNewRecord ? ' - New Record!' : ''}`
         });
       } else if (currentIndex < flashcards.length - 1) {
         setCurrentIndex(currentIndex + 1);
@@ -165,6 +168,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
         setTitle={setTitle}
         correctAnswers={correctAnswers}
         totalCards={flashcards.length}
+        highScore={highScore}
         onReset={resetQuiz}
         onBack={onBack}
         onGoToCard={goToCard}
@@ -188,6 +192,7 @@ export default function FlashcardQuiz({ setId, onBack }: FlashcardQuizProps) {
         correctAnswers={correctAnswers}
         answeredCount={answeredCount}
         totalCards={flashcards.length}
+        highScore={highScore}
       />
 
       <FlashcardDisplay

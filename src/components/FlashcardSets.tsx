@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Play, Calendar, Trash2 } from 'lucide-react';
+import { Play, Calendar, Trash2, Award } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface FlashcardSet {
@@ -14,6 +14,7 @@ interface FlashcardSet {
   prompt: string;
   created_at: string;
   flashcard_count?: number;
+  high_score?: number;
 }
 
 interface FlashcardSetsProps {
@@ -45,12 +46,30 @@ export default function FlashcardSets({ refreshTrigger, onStartQuiz }: Flashcard
 
       if (error) throw error;
 
-      const setsWithCount = data.map(set => ({
-        ...set,
-        flashcard_count: set.flashcards?.[0]?.count || 0
-      }));
+      // Fetch high scores for each set
+      const setsWithHighScores = await Promise.all(
+        data.map(async (set) => {
+          const { data: highScoreData } = await supabase
+            .from('quiz_sessions')
+            .select('correct_answers')
+            .eq('user_id', user.id)
+            .eq('set_id', set.id)
+            .eq('completed', true)
+            .order('correct_answers', { ascending: false })
+            .limit(1);
 
-      setSets(setsWithCount);
+          const flashcardCount = set.flashcards?.[0]?.count || 0;
+          const highScore = highScoreData && highScoreData.length > 0 ? highScoreData[0].correct_answers : 0;
+
+          return {
+            ...set,
+            flashcard_count: flashcardCount,
+            high_score: highScore
+          };
+        })
+      );
+
+      setSets(setsWithHighScores);
     } catch (error) {
       console.error('Error fetching flashcard sets:', error);
       toast({
@@ -125,7 +144,7 @@ export default function FlashcardSets({ refreshTrigger, onStartQuiz }: Flashcard
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {sets.map((set) => (
-        <Card key={set.id} className="hover:shadow-lg transition-shadow">
+        <Card key={set.id} className="hover:shadow-lg transition-all duration-300 hover:scale-105">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg">{set.title}</CardTitle>
             <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -141,25 +160,34 @@ export default function FlashcardSets({ refreshTrigger, onStartQuiz }: Flashcard
                 {set.flashcard_count} cards
               </Badge>
               
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => onStartQuiz(set.id)}
-                  className="flex items-center gap-1"
-                >
-                  <Play className="h-4 w-4" />
-                  Study
-                </Button>
-                
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => deleteSet(set.id)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              {set.high_score && set.high_score > 0 && (
+                <div className="flex items-center gap-1 text-amber-600">
+                  <Award className="h-4 w-4" />
+                  <span className="text-sm font-medium">
+                    {set.high_score}/{set.flashcard_count}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => onStartQuiz(set.id)}
+                className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all"
+              >
+                <Play className="h-4 w-4 mr-2" />
+                Study
+              </Button>
+              
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => deleteSet(set.id)}
+                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
             </div>
           </CardContent>
         </Card>

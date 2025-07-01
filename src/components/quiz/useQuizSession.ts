@@ -5,7 +5,35 @@ import { supabase } from '@/integrations/supabase/client';
 
 export function useQuizSession(setId: string) {
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [highScore, setHighScore] = useState<number>(0);
   const { user } = useAuth();
+
+  useEffect(() => {
+    fetchHighScore();
+  }, [setId, user]);
+
+  const fetchHighScore = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('quiz_sessions')
+        .select('correct_answers')
+        .eq('user_id', user.id)
+        .eq('set_id', setId)
+        .eq('completed', true)
+        .order('correct_answers', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setHighScore(data[0].correct_answers);
+      }
+    } catch (error) {
+      console.error('Error fetching high score:', error);
+    }
+  };
 
   const createQuizSession = async () => {
     if (!user) return;
@@ -45,6 +73,11 @@ export function useQuizSession(setId: string) {
           updated_at: new Date().toISOString()
         })
         .eq('id', sessionId);
+
+      // Update high score if this is a new record
+      if (quizCompleted && correctAnswers > highScore) {
+        setHighScore(correctAnswers);
+      }
     } catch (error) {
       console.error('Error updating session:', error);
     }
@@ -52,7 +85,9 @@ export function useQuizSession(setId: string) {
 
   return {
     sessionId,
+    highScore,
     createQuizSession,
-    updateSession
+    updateSession,
+    fetchHighScore
   };
 }

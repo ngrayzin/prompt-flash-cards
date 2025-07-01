@@ -10,10 +10,8 @@ interface AnswerButtonsProps {
 export default function AnswerButtons({ onAnswer, isAnswered }: AnswerButtonsProps) {
   if (isAnswered) {
     return (
-      <div className="text-center">
-        <p className="text-sm text-gray-500">
-          Already answered this card
-        </p>
+      <div className="text-center text-sm text-gray-500">
+        Answer recorded! Moving to next question...
       </div>
     );
   }
@@ -21,19 +19,22 @@ export default function AnswerButtons({ onAnswer, isAnswered }: AnswerButtonsPro
   return (
     <div className="flex gap-4 justify-center">
       <Button
-        variant="outline"
         onClick={() => onAnswer(false)}
-        className="text-red-600 hover:text-red-700"
+        variant="outline"
+        size="lg"
+        className="flex-1 max-w-48 bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300 text-red-700 hover:text-red-800 transition-all hover:scale-105"
       >
-        <XCircle className="mr-2 h-4 w-4" />
-        Incorrect
+        <XCircle className="mr-2 h-5 w-5" />
+        Didn't Know
       </Button>
       <Button
         onClick={() => onAnswer(true)}
-        className="text-green-600 hover:text-green-700"
+        variant="outline"
+        size="lg"
+        className="flex-1 max-w-48 bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300 text-green-700 hover:text-green-800 transition-all hover:scale-105"
       >
-        <CheckCircle className="mr-2 h-4 w-4" />
-        Correct
+        <CheckCircle className="mr-2 h-5 w-5" />
+        Got It Right
       </Button>
     </div>
   );
