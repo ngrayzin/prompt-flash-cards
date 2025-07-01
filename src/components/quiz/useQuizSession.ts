@@ -19,8 +19,6 @@ export function useQuizSession(setId: string) {
 
     setIsUpdatingHighScore(true);
     try {
-      console.log("Fetching high score for user:", user.id, "set:", setId);
-
       const { data, error } = await supabase
         .from("quiz_sessions")
         .select("correct_answers, created_at")
@@ -32,21 +30,16 @@ export function useQuizSession(setId: string) {
         .limit(1);
 
       if (error) {
-        console.error("Error in fetchHighScore query:", error);
         throw error;
       }
 
-      console.log("High score query result:", data);
-
       if (data && data.length > 0) {
-        console.log("Setting high score to:", data[0].correct_answers);
         setHighScore(data[0].correct_answers);
       } else {
-        console.log("No completed sessions found, high score remains 0");
         setHighScore(0);
       }
     } catch (error) {
-      console.error("Error fetching high score:", error);
+      // Silent error handling - high score remains at current value
     } finally {
       setIsUpdatingHighScore(false);
     }
@@ -72,7 +65,7 @@ export function useQuizSession(setId: string) {
       if (error) throw error;
       setSessionId(data.id);
     } catch (error) {
-      console.error("Error creating quiz session:", error);
+      // Silent error handling - session creation failed
     }
   };
 
@@ -99,15 +92,8 @@ export function useQuizSession(setId: string) {
         .eq("id", sessionId);
 
       if (error) {
-        console.error("Error updating session:", error);
         throw error;
       }
-
-      console.log("Session updated successfully:", {
-        sessionId,
-        correctAnswers,
-        completed: quizCompleted,
-      });
 
       // If quiz is completed, immediately check and update high score
       if (quizCompleted) {
@@ -116,12 +102,6 @@ export function useQuizSession(setId: string) {
 
         // Update local high score immediately if this is better
         if (correctAnswers > highScore) {
-          console.log(
-            "New high score detected, updating from",
-            highScore,
-            "to",
-            correctAnswers
-          );
           setHighScore(correctAnswers);
         }
 
@@ -129,7 +109,6 @@ export function useQuizSession(setId: string) {
         await fetchHighScore();
       }
     } catch (error) {
-      console.error("Error updating session:", error);
       throw error;
     }
   };
@@ -154,20 +133,16 @@ export function useQuizSession(setId: string) {
         .single();
 
       if (error) {
-        console.error("Error verifying session:", error);
         return null;
       }
 
-      console.log("Session verification result:", data);
       return data;
     } catch (error) {
-      console.error("Error verifying session:", error);
       return null;
     }
   };
 
   const refreshHighScore = async () => {
-    console.log("Manually refreshing high score...");
     await fetchHighScore();
   };
 
